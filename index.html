@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Змейка</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #222;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+    #score {
+      margin: 8px 0 8px 0;
+      font-size: 1.3em;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    canvas {
+      background: #111;
+      border: 3px solid #444;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px #000b;
+      max-width: 90vw;
+      max-height: 60vw;
+      touch-action: none;
+    }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      user-select: none;
+    }
+    .controls-row {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      justify-content: center;
+    }
+    .ctrl-btn {
+      width: 56px;
+      height: 56px;
+      font-size: 2em;
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px #0008;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ctrl-btn:active {
+      background: #666;
+    }
+    @media (hover: hover) {
+      .ctrl-btn:hover { background: #777; }
+    }
+    @media screen and (max-width: 620px) {
+      .game-container { justify-content: start; margin-top: 5vw; }
+      canvas { max-width: 96vw; max-height: 86vw; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div id="score">Счет: 0</div>
+    <canvas id="game" width="320" height="320"></canvas>
+    <div class="controls">
+      <div class="controls-row">
+        <button class="ctrl-btn" data-dir="up">↑</button>
+      </div>
+      <div class="controls-row">
+        <button class="ctrl-btn" data-dir="left">←</button>
+        <button class="ctrl-btn" data-dir="down">↓</button>
+        <button class="ctrl-btn" data-dir="right">→</button>
+      </div>
+    </div>
+  </div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+
+const gridSize = 16;
+const tileCount = 20; // 320 / 16 = 20
+
+let snake = [{x:10, y:10}], dir = 'right', nextDir = 'right';
+let apple = {x: 15, y: 10};
+let running = true;
+let score = 0;
+let speed = 110; // ms
+
+// Draw one frame
+function draw() {
+  // Move
+  const head = { ...snake[0] };
+  if (dir === 'left') head.x--;
+  if (dir === 'right') head.x++;
+  if (dir === 'up') head.y--;
+  if (dir === 'down') head.y++;
+  
+  // Check collision - wall
+  if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+    return gameOver();
+  }
+  // Check collision - self
+  if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+    return gameOver();
+  }
+
+  // Move to next direction only if not inverted
+  dir = nextDir;
+
+  snake.unshift(head);
+
+  // Apple eaten
+  if (head.x === apple.x && head.y === apple.y) {
+    score += 1;
+    scoreEl.innerText = 'Счет: ' + score;
+    placeApple();
+    // Optionally speed up the game
+    speed = Math.max(40, speed - 2); // Faster on each eat
+  } else {
+    // Remove tail
+    snake.pop();
+  }
+
+  // Draw
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Draw apple
+  ctx.fillStyle = '#e33';
+  ctx.beginPath();
+  ctx.arc((apple.x+0.5)*gridSize, (apple.y+0.5)*gridSize, gridSize/2-2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Draw snake
+  for(let [i, seg] of snake.entries()){
+    ctx.fillStyle = i === 0 ? '#3e3' : '#fff';
+    ctx.beginPath();
+    ctx.arc((seg.x+0.5)*gridSize, (seg.y+0.5)*gridSize, gridSize/2-2, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function gameOver(){
+  running = false;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 32px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Игра окончена', canvas.width/2, canvas.height/2-16);
+  ctx.font = '20px Arial';
+  ctx.fillText('Счет: ' + score, canvas.width/2, canvas.height/2+20);
+  ctx.font = '15px Arial';
+  ctx.fillText('Обновите страницу для новой игры', canvas.width/2, canvas.height/2+50);
+}
+
+function placeApple() {
+  let pos;
+  do {
+    pos = {
+      x: Math.floor(Math.random() * tileCount),
+      y: Math.floor(Math.random() * tileCount)
+    };
+  } while (snake.some(seg => seg.x === pos.x && seg.y === pos.y));
+  apple = pos;
+}
+
+function loop() {
+  if (running) {
+    draw();
+    setTimeout(loop, speed);
+  }
+}
+loop();
+
+// Controls
+const dirs = {
+  ArrowUp: 'up',    w: 'up',    ц: 'up',
+  ArrowDown: 'down', s: 'down', ы: 'down',
+  ArrowLeft: 'left', a: 'left', ф: 'left',
+  ArrowRight: 'right', d: 'right', в: 'right'
+};
+document.addEventListener('keydown', (e) => {
+  const newDir = dirs[e.key];
+  if (!newDir) return;
+  if (isOpposite(dir, newDir)) return;
+  nextDir = newDir;
+});
+function isOpposite(a, b) {
+  return (a === 'left' && b === 'right') ||
+         (a === 'right' && b === 'left')  ||
+         (a === 'up' && b === 'down')     ||
+         (a === 'down' && b === 'up');
+}
+
+// Mobile controls (buttons)
+for (const btn of document.querySelectorAll('.ctrl-btn')) {
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const newDir = btn.getAttribute('data-dir');
+    if (!isOpposite(dir, newDir)) {
+      nextDir = newDir;
+    }
+  });
+  btn.addEventListener('click', () => {
+    const newDir = btn.getAttribute('data-dir');
+    if (!isOpposite(dir, newDir)) {
+      nextDir = newDir;
+    }
+  });
+}
+
+// Swipe controls for touch
+let touchStartX = 0, touchStartY = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) return;
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+});
+canvas.addEventListener('touchend', e => {
+  if (e.changedTouches.length !== 1) return;
+  let dx = e.changedTouches[0].clientX - touchStartX;
+  let dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 20 && !isOpposite(dir, 'right')) nextDir = 'right';
+    if (dx < -20 && !isOpposite(dir, 'left')) nextDir = 'left';
+  } else {
+    if (dy > 20 && !isOpposite(dir, 'down')) nextDir = 'down';
+    if (dy < -20 && !isOpposite(dir, 'up')) nextDir = 'up';
+  }
+});
+</script>
+</body>
+</html>
